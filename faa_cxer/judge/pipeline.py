@@ -45,21 +45,6 @@ class CxERJudgePipeline:
     # ── static-ish helper: build the vLLM judge model ───────────────────
 
     @staticmethod
-    def _no_compilation_config() -> dict:
-        """`{"level": 0}` disabled torch.compile under vLLM < 0.9; newer
-        vLLM renamed that field to `mode` (an enum where 0/NONE means the
-        same "no compilation"). Inspect whichever `CompilationConfig` is
-        actually installed instead of hardcoding one API generation, so
-        this keeps working across vLLM upgrades."""
-        import dataclasses
-
-        from vllm.config import CompilationConfig
-
-        field_names = {f.name for f in dataclasses.fields(CompilationConfig)}
-        key = "mode" if "mode" in field_names else "level"
-        return {key: 0}
-
-    @staticmethod
     def load_model(model_name: str, tensor_parallel_size: int = 4, gpu_memory_utilization: float = 0.8, max_model_len: int = 8000):
         """Load a judge LLM under vLLM. Requires `CUDA_VISIBLE_DEVICES` to
         already be set in the environment before this call (vLLM/torch read
@@ -76,7 +61,14 @@ class CxERJudgePipeline:
             gpu_memory_utilization=gpu_memory_utilization,
             dtype="float16",
             disable_log_stats=True,
-            compilation_config=CxERJudgePipeline._no_compilation_config(),
+            # A bare int has been the version-stable way to say "no
+            # torch.compile" across vLLM releases — it's handled by an
+            # isinstance(int) branch that constructs whatever the installed
+            # CompilationConfig needs internally (old releases had a
+            # `level` field, new ones renamed it to a `mode` enum; 0 means
+            # "disabled" either way). Passing {"level": 0} directly broke
+            # on vLLM >= 0.9 once that rename landed.
+            compilation_config=0,
             max_model_len=max_model_len,
         )
         print("Model loaded successfully!")
