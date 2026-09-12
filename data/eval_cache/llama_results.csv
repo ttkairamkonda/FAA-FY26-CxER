@@ -1,0 +1,11 @@
+judge,model,variant,dataset,WER,BERTDist,SemDist,CCER
+llama,FAA_Model,N/A,FAA,11.3583,0.020128,0.000697,
+llama,FAA_Model_prediction_FAA_Whisper_L_TL_100K,N/A,FAA,11.5915,0.02623,0.000812,
+llama,FAA_Model_prediction_FAA_Whisper_L_TL_500K,N/A,FAA,8.3512,0.019808,0.000599,
+llama,FAA_Model_prediction_FAA_Whisper_M_TL_100K,N/A,FAA,12.8446,0.029298,0.000925,
+llama,FAA_Model_prediction_FAA_Whisper_M_TL_500K,N/A,FAA,8.2528,0.018738,0.000578,
+llama,FAA_Model_prediction_FAA_parakeet_TL_100K,N/A,FAA,11.6138,0.02735,0.000844,
+llama,FAA_Model_prediction_FAA_parakeet_TL_500K,N/A,FAA,11.0432,0.026475,0.000823,
+llama,FAA_Model_prediction_parakeet-tdt-0.6b-v2,N/A,FAA,47.4962,0.109925,0.00409,
+llama,FAA_Model_prediction_whisper-large-v3,N/A,FAA,70.975,0.138771,0.006098,
+llama,FAA_Model_prediction_whisper-medium.en,N/A,FAA,76.2309,0.139866,0.006262,

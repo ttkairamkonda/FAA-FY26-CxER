@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
+*.tmp
+.DS_Store
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# See README.md "Data & the GitHub push" — data/ is ~100MB of ATC transcript
+# derived JSON that should NOT go into a public git history as-is. Nothing
+# is ignored by default so `git status` shows you exactly what you're about
+# to commit; uncomment before pushing once you've decided how to handle it
+# (Git LFS, a private remote, or excluding data/ and outputs/ entirely).
+# data/
+# outputs/

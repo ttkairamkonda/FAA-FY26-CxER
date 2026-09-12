@@ -1,0 +1,13 @@
+model,WER,BERTDist,SemDist
+FAA_Model_prediction_whisper-large-v3,70.5345,0.13461,0.005939
+FAA_Model_prediction_whisper-medium.en,77.5978,0.136489,0.006192
+FAA_Model_prediction_FAA_Whisper_L_TL_100K,11.3569,0.025534,0.000794
+FAA_Model_prediction_FAA_Whisper_L_TL_500K,8.0262,0.018147,0.000569
+FAA_Model_prediction_FAA_Whisper_L_LoRA32_100K,16.3849,0.0371,0.001192
+FAA_Model_prediction_FAA_Whisper_M_TL_100K,12.4963,0.027742,0.000874
+FAA_Model_prediction_FAA_Whisper_M_TL_500K,7.8217,0.017592,0.000554
+FAA_Model_prediction_FAA_Whisper_M_LoRA32_100K,15.2163,0.032928,0.001067
+FAA_Model,11.3583,0.020084,0.000703
+FAA_Model_prediction_parakeet-tdt-0.6b-v2,47.4962,0.10051,0.003624
+FAA_Model_prediction_FAA_parakeet_TL_100K,11.6138,0.027252,0.000849
+FAA_Model_prediction_FAA_parakeet_TL_500K,11.0432,0.026431,0.000831

@@ -1,0 +1,6 @@
+# Extra dependencies for stage 2 only (scripts/02_run_cxer_judge.py),
+# which needs a CUDA GPU host. Install on top of requirements.txt:
+#   pip install -r requirements.txt -r requirements-judge.txt
+vllm>=0.5
+huggingface_hub>=0.20
+python-dotenv>=1.0

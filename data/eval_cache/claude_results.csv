@@ -1,0 +1,7 @@
+judge,model,variant,dataset,WER,BERTDist,SemDist,CCER
+claude,FAA_Whisper_L_TL_500K,N/A,FAA,7.8329,0.018762,0.001439,0.234
+claude,FAA_Whisper_M_TL_500K,N/A,FAA,7.5628,0.01812,0.000572,0.219
+claude,nvidia_parakeet,N/A,FAA,49.2306,0.118783,0.004715,0.867543
+claude,openai_whisper-large-v3,N/A,FAA,70.6265,0.148016,0.006975,0.774
+claude,openai_whisper-medium.en,N/A,FAA,72.7807,0.148634,0.007156,0.801
+claude,parakeet_TL_500k,N/A,FAA,7.8428,0.137411,0.011594,0.247247
