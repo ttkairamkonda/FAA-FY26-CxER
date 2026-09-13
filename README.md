@@ -101,7 +101,11 @@ the default used for the headline results.
             ├── scripts/04_analyze_token_frequency.py  → do rare/domain words improve less than common ones?
             ├── scripts/05_analyze_transitions.py      → per-sample safety drift (Equivalent↔Critical) + Sankey
             ├── scripts/06_analyze_paradox.py          → low-WER-but-critical concentration/trust-violation table + scatter plots
-            └── scripts/07_make_comparison_plots.py    → the headline WER vs BERTDist vs SemDist vs CxER bar chart
+            ├── scripts/07_make_comparison_plots.py    → the headline WER vs BERTDist vs SemDist vs CxER bar chart
+            └── scripts/08_analyze_critical_error_word_frequency.py
+                                                        → are critical-error words rarer than the corpus average,
+                                                          and does that skew get WORSE after fine-tuning? (the
+                                                          mechanistic link between §4's finding and the paradox)
 ```
 
 Each stage's script is a thin CLI wrapper (argument parsing + wiring) around
@@ -221,13 +225,16 @@ faa_cxer/
 │   ├── evaluator.py           CxEREvaluator      — batched classification + GPU-OOM backoff
 │   └── pipeline.py            CxERJudgePipeline  — resumable, crash-safe run orchestration
 ├── analysis/               # Stage 3 + downstream analysis
-│   ├── merge.py               CxERMetricsMerger  — stage 3: combine metrics + CxER labels
-│   ├── transitions.py         TransitionAnalyzer — per-sample safety drift (Eq↔Critical)
-│   └── paradox.py             ParadoxAnalyzer    — low-WER-but-critical concentration/trust-violation
+│   ├── merge.py               CxERMetricsMerger        — stage 3: combine metrics + CxER labels
+│   ├── transitions.py         TransitionAnalyzer       — per-sample safety drift (Eq↔Critical)
+│   ├── paradox.py             ParadoxAnalyzer          — low-WER-but-critical concentration/trust-violation
+│   └── error_tokens.py        CriticalErrorTokenAnalyzer — are critical-error words rarer than the corpus,
+│                                                           and does that get worse after fine-tuning?
 └── viz/                    # Plotting — one class per figure type, all reusable
     ├── comparison_bars.py     ComparisonBarChart    — the 2x2 WER/BERTDist/SemDist/CxER bar chart
     ├── frequency_plots.py     TokenFrequencyPlotter — rare-vs-frequent-word plots
     ├── paradox_scatter.py     ParadoxScatterPlotter — WER-jitter scatter with tau threshold
+    ├── error_token_frequency.py ErrorTokenFrequencyPlotter — rarity-enrichment bar chart
     └── sankey.py              SafetyDriftSankeyPlotter — Sankey diagram of classification transitions
 ```
 
@@ -264,6 +271,7 @@ python scripts/04_analyze_token_frequency.py
 python scripts/05_analyze_transitions.py
 python scripts/06_analyze_paradox.py
 python scripts/07_make_comparison_plots.py
+python scripts/08_analyze_critical_error_word_frequency.py
 ```
 
 Every script accepts `--help` for its full option list (input/output paths,
