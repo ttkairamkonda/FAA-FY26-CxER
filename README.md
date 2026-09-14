@@ -323,19 +323,3 @@ package (nothing in `FAA_EMNLP` was modified). Concretely:
 - `judge/prompts/*.py` template files are copied verbatim — the wording of
   a judge prompt is experimental content, not implementation detail, so it
   wasn't rewritten.
-
-## 10. Before pushing this to GitHub
-
-`data/` (~150MB) and `outputs/examples/` (~13MB) contain ATC-transcript-derived
-content copied in at your request. Before making this repository public (or
-even just pushing it), decide how to handle that:
-
-- Keep the repo private, or
-- Move `data/`/`outputs/` out from under git and reference them via
-  `faa_cxer.config.Config(data_dir=..., outputs_dir=...)` instead, or
-- Use [Git LFS](https://git-lfs.github.com/) for the JSON/PNG files, or
-- Confirm the transcript content is already de-identified/cleared for public release.
-
-Nothing in `.gitignore` excludes `data/`/`outputs/` by default — that's
-deliberate, so `git status` shows you exactly what you're about to commit
-rather than silently hiding it.
