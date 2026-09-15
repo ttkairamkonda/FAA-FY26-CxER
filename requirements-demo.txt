@@ -1,0 +1,5 @@
+# Extra dependencies for the interactive demo (demo_app.py) on top of
+# requirements.txt. Deliberately separate — requirements.txt is the
+# pipeline's own dependency set; this file is demo-packaging-only.
+streamlit>=1.32,<2
+scipy>=1.10   # faa_cxer.analysis.error_tokens.chi_square_test
