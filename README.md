@@ -30,9 +30,9 @@ mistakes it can make are very different in consequence:
 
 | Example | WER impact | Operationally |
 |---|---|---|
-| Reference: `descend to altitude` → Hypothesis: `descend altitude` | 1 word "wrong" | **Fine** — same instruction |
+| Reference: `descend to altitude` → Hypothesis: `descend altitude` | 1 word "wrong" | **Equivalent** — same instruction |
 | Reference: `runway two seven **left**` → Hypothesis: `runway two seven **right**` | 1 word "wrong" | **Critical** — sends the aircraft to the wrong runway |
-| Reference: `american twenty one **ninety six**` → Hypothesis: `american twenty one **nine six**` | 1-2 words "wrong" | **Critical** — wrong callsign, could apply an instruction to the wrong aircraft |
+| Reference: `american twenty one **ninety six**` → Hypothesis: `american twenty one **nine six**` | 1-2 words "wrong" | **Equivalent** — same instruction |
 
 WER treats all three the same: one wrong word out of N. It cannot tell "safe
 paraphrase" from "safety-critical error." **CxER** is built specifically to
