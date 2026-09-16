@@ -1,0 +1,268 @@
+{
+  "judge": "Llama-3.3-70B-Instruct",
+  "samples": [
+    {
+      "id": "whisper_medium_paradox",
+      "family": "Whisper Medium",
+      "story": "paradox",
+      "title": "Fine-tuning introduced a wrong heading digit",
+      "audio_file": "1687.wav",
+      "reference": "three thousand two seven zero n four seven",
+      "variants": [
+        {
+          "label": "Pretrained (whisper-medium.en)",
+          "hypothesis": "3000270 at 47.",
+          "wer": 1.0,
+          "classification": "Equivalent",
+          "explanation": "The transcription accurately represents the reference with no operationally significant errors.",
+          "errors": []
+        },
+        {
+          "label": "Fine-tuned (FAA_Whisper_M_TL_500K)",
+          "hypothesis": "three thousand two seven zero med four seven",
+          "wer": 0.125,
+          "classification": "Critical_Errors",
+          "explanation": "The transcription contains a critical error in the heading due to the substitution of 'n' with 'med'.",
+          "errors": [
+            {
+              "entity_type": "heading",
+              "error_name": "wrong_heading",
+              "reference_value": "n four seven",
+              "transcribed_value": "med four seven",
+              "safety_risk": "medium",
+              "explanation": "The transcription incorrectly used 'med' instead of 'n' for the number 'n' in the heading 'n four seven'."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "whisper_medium_fixed",
+      "family": "Whisper Medium",
+      "story": "fixed",
+      "title": "Fine-tuning fixed a total hallucination",
+      "audio_file": "6099.wav",
+      "reference": "cleared to land two eight center american eighty seven heavy",
+      "variants": [
+        {
+          "label": "Pretrained (whisper-medium.en)",
+          "hypothesis": "s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s s",
+          "wer": 44.4,
+          "classification": "Critical_Errors",
+          "explanation": "The transcription does not contain any recognizable elements comparable to the reference transcript.",
+          "errors": [
+            {
+              "entity_type": "other",
+              "error_name": "transcription_content_missing",
+              "reference_value": "cleared to land two eight center american eighty seven heavy",
+              "transcribed_value": "s",
+              "safety_risk": "high",
+              "explanation": "The transcription lacks any meaningful content, posing a significant safety risk due to the complete loss of operational information."
+            }
+          ]
+        },
+        {
+          "label": "Fine-tuned (FAA_Whisper_M_TL_500K)",
+          "hypothesis": "cleared to land two eight center american eighty seven heavy",
+          "wer": 0.0,
+          "classification": "Equivalent",
+          "explanation": "The transcription matches the reference transcript exactly, with no operationally significant errors.",
+          "errors": []
+        }
+      ]
+    },
+    {
+      "id": "whisper_large_paradox",
+      "family": "Whisper Large",
+      "story": "paradox",
+      "title": "Fine-tuning dropped the word \u201ccleared\u201d",
+      "audio_file": "3894.wav",
+      "reference": "cleared visual one zero left cleared to land one zero left american twenty two seventy one",
+      "variants": [
+        {
+          "label": "Pretrained (whisper-large-v3)",
+          "hypothesis": "big visual, 10l, 10l, 2271.",
+          "wer": 0.9375,
+          "classification": "Equivalent",
+          "explanation": "The transcription accurately conveys the same operational meaning as the reference transcript.",
+          "errors": []
+        },
+        {
+          "label": "Fine-tuned (FAA_Whisper_L_TL_500K)",
+          "hypothesis": "visual one zero left cleared to land one zero left american twenty two seventy one",
+          "wer": 0.0625,
+          "classification": "Critical_Errors",
+          "explanation": "The transcription missed the word 'cleared' which is a critical error related to clearance.",
+          "errors": [
+            {
+              "entity_type": "clearance",
+              "error_name": "clearance_omission",
+              "reference_value": "cleared",
+              "transcribed_value": "",
+              "safety_risk": "high",
+              "explanation": "The word 'cleared' was omitted in the transcription, which changes the meaning of the clearance instruction."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "whisper_large_fixed",
+      "family": "Whisper Large",
+      "story": "fixed",
+      "title": "Fine-tuning fixed a rambling hallucinated transcript",
+      "audio_file": "5075.wav",
+      "reference": "two five right shortened line up and wait november nine three nine quebec sierra",
+      "variants": [
+        {
+          "label": "Pretrained (whisper-large-v3)",
+          "hypothesis": "2sr, short and line up on the way, n939qs. alright, for weather trends, both runways open and available except this portion of 25r. runway 25l is open and available for county 561he and skyhawk 5190, both cleared to land. runway 25r is occupied by n939qs in position on runway 25r. don't know about the 270s, crossover is approved.",
+          "wer": 4.0,
+          "classification": "Critical_Errors",
+          "explanation": "The transcription contains a critical error in the runway instruction.",
+          "errors": [
+            {
+              "entity_type": "runway",
+              "error_name": "wrong_runway_instruction",
+              "reference_value": "two five right shortened line up and wait",
+              "transcribed_value": "short and line up on the way",
+              "safety_risk": "high",
+              "explanation": "The transcription incorrectly transcribed the runway instruction, omitting the specific runway designation and the action to 'shortened line up and wait'."
+            },
+            {
+              "entity_type": "callsign",
+              "error_name": "wrong_callsign_format",
+              "reference_value": "november nine three nine quebec sierra",
+              "transcribed_value": "n939qs",
+              "safety_risk": "medium",
+              "explanation": "The transcription used an abbreviated format for the callsign instead of the full phonetic pronunciation."
+            }
+          ]
+        },
+        {
+          "label": "Fine-tuned (FAA_Whisper_L_TL_500K)",
+          "hypothesis": "two five right shortened line up and wait november nine three nine quebec sierra",
+          "wer": 0.0,
+          "classification": "Equivalent",
+          "explanation": "The transcription is identical to the reference transcript.",
+          "errors": []
+        }
+      ]
+    },
+    {
+      "id": "parakeet_paradox",
+      "family": "Parakeet",
+      "story": "paradox",
+      "title": "Fine-tuning swapped the callsign",
+      "audio_file": "1201.wav",
+      "reference": "compass seventeen fifty eight reduce speed two one zero",
+      "variants": [
+        {
+          "label": "Pretrained (parakeet-tdt-0.6b-v2)",
+          "hypothesis": "that was 1758, reduced to 210.",
+          "wer": 1.0,
+          "classification": "Equivalent",
+          "explanation": "The transcription accurately conveys the same operational information as the reference transcript.",
+          "errors": []
+        },
+        {
+          "label": "Fine-tuned (FAA_parakeet_TL_500K)",
+          "hypothesis": "delta seventeen fifty eight reduce speed two one zero",
+          "wer": 0.1111111111111111,
+          "classification": "Critical_Errors",
+          "explanation": "The transcription contains a critical error in the callsign.",
+          "errors": [
+            {
+              "entity_type": "callsign",
+              "error_name": "wrong_callsign",
+              "reference_value": "compass",
+              "transcribed_value": "delta",
+              "safety_risk": "medium",
+              "explanation": "The callsign 'compass' was incorrectly transcribed as 'delta'."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "parakeet_fixed",
+      "family": "Parakeet",
+      "story": "fixed",
+      "title": "Fine-tuning fixed a clearance contradiction",
+      "audio_file": "1581.wav",
+      "reference": "continue",
+      "variants": [
+        {
+          "label": "Pretrained (parakeet-tdt-0.6b-v2)",
+          "hypothesis": "depends on you.",
+          "wer": 3.0,
+          "classification": "Critical_Errors",
+          "explanation": "The transcription contains a critical error in the clearance instruction.",
+          "errors": [
+            {
+              "entity_type": "clearance",
+              "error_name": "clearance_contradiction",
+              "reference_value": "continue",
+              "transcribed_value": "depends on you",
+              "safety_risk": "high",
+              "explanation": "The reference instructed to 'continue', but the transcription stated 'depends on you', which is a contradiction in clearance."
+            }
+          ]
+        },
+        {
+          "label": "Fine-tuned (FAA_parakeet_TL_500K)",
+          "hypothesis": "continue",
+          "wer": 0.0,
+          "classification": "Equivalent",
+          "explanation": "The transcription is identical to the reference transcript.",
+          "errors": []
+        }
+      ]
+    },
+    {
+      "id": "faa_model_standalone_good",
+      "family": "FAA_Model",
+      "story": "standalone_good",
+      "title": "Production model \u2014 exact match",
+      "audio_file": "4.wav",
+      "reference": "delta seven twenty two turn left two six zero five from mattr three till established cleared the i l s runway two two right",
+      "variants": [
+        {
+          "label": "Production model (FAA_Model)",
+          "hypothesis": "delta seven twenty two turn left two six zero five from mattr three till established cleared the i l s runway two two right",
+          "wer": 0.0,
+          "classification": "Equivalent",
+          "explanation": "The transcription is identical to the reference transcript.",
+          "errors": []
+        }
+      ]
+    },
+    {
+      "id": "faa_model_standalone_critical",
+      "family": "FAA_Model",
+      "story": "standalone_critical",
+      "title": "Production model \u2014 dropped \u201cheavy\u201d from the callsign",
+      "audio_file": "3494.wav",
+      "reference": "eva zero zero five heavy traffic two mile final minimum delay cross runway two five left turn left on alfa eva zero zero five heavy cross runway two five left left on alfa traffic two mile final",
+      "variants": [
+        {
+          "label": "Production model (FAA_Model)",
+          "hypothesis": "eva zero zero five traffic two mile final minimum delay cross runway two five left turn left on alfa eva zero zero five heavy cross runway two five left left on alfa traffic two mile final",
+          "wer": 0.02702702702702703,
+          "classification": "Critical_Errors",
+          "explanation": "The transcription contains a critical error in the callsign due to the omission of 'heavy' in the initial part of the message.",
+          "errors": [
+            {
+              "entity_type": "callsign",
+              "error_name": "wrong_callsign_prefix",
+              "reference_value": "eva zero zero five heavy",
+              "transcribed_value": "eva zero zero five",
+              "safety_risk": "medium",
+              "explanation": "The transcription missed the 'heavy' designation in the callsign 'eva zero zero five', which could imply a different aircraft type or weight class."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
