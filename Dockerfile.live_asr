@@ -41,6 +41,14 @@ COPY data/audio_samples/1687.wav data/audio_samples/6099.wav ./data/audio_sample
 ENV HF_HUB_OFFLINE=1
 ENV TRANSFORMERS_OFFLINE=1
 
+# Belt-and-suspenders alongside torch.set_num_threads(4) in
+# live_asr_app.py - some BLAS backends read these independently of what
+# torch itself is told, and thread oversubscription on Docker Desktop's
+# virtualized CPUs is what turns a few-second generate() call into an
+# apparent hang.
+ENV OMP_NUM_THREADS=4
+ENV MKL_NUM_THREADS=4
+
 EXPOSE 8501
 
 CMD ["streamlit", "run", "live_asr_app.py"]

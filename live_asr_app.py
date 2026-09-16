@@ -26,6 +26,16 @@ import tempfile
 import time
 from pathlib import Path
 
+import torch
+
+# PyTorch's default CPU threading can badly oversubscribe/contend on the
+# virtualized cores inside Docker Desktop's VM (most visible on Mac),
+# which shows up as generate() appearing to hang rather than just being
+# slow. A short clip through Whisper Medium doesn't need much
+# parallelism anyway, so cap it explicitly rather than let torch grab
+# every available core.
+torch.set_num_threads(4)
+
 import librosa
 import streamlit as st
 
