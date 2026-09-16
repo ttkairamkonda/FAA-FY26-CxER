@@ -33,6 +33,14 @@ COPY .streamlit/ ./.streamlit/
 COPY data/curated_samples.json ./data/curated_samples.json
 COPY data/audio_samples/1687.wav data/audio_samples/6099.wav ./data/audio_samples/
 
+# Force offline mode at RUNTIME (build already has everything it needs
+# cached). Without this, transformers can still make a network call to
+# Hugging Face Hub to revalidate cached files on every from_pretrained() -
+# if that call stalls (flaky Docker networking, etc.) it looks exactly
+# like the app hanging, with zero error output.
+ENV HF_HUB_OFFLINE=1
+ENV TRANSFORMERS_OFFLINE=1
+
 EXPOSE 8501
 
 CMD ["streamlit", "run", "live_asr_app.py"]

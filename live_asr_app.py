@@ -55,8 +55,16 @@ st.set_page_config(page_title="FAA CxER — Live ASR", layout="centered")
 def load_pipelines():
     from transformers import pipeline
 
+    print(f"[live_asr] loading pretrained ({PRETRAINED_ID})...", flush=True)
+    t0 = time.time()
     pretrained = pipeline("automatic-speech-recognition", model=PRETRAINED_ID, device=-1)
+    print(f"[live_asr] pretrained loaded in {time.time() - t0:.1f}s", flush=True)
+
+    print(f"[live_asr] loading fine-tuned ({FINETUNED_ID})...", flush=True)
+    t0 = time.time()
     finetuned = pipeline("automatic-speech-recognition", model=FINETUNED_ID, device=-1)
+    print(f"[live_asr] fine-tuned loaded in {time.time() - t0:.1f}s", flush=True)
+
     return pretrained, finetuned
 
 
@@ -72,9 +80,12 @@ def load_known_samples():
 
 
 def transcribe(pipe, audio_array, sampling_rate):
+    print(f"[live_asr] transcribing {len(audio_array) / sampling_rate:.1f}s of audio...", flush=True)
     t0 = time.time()
     result = pipe({"array": audio_array, "sampling_rate": sampling_rate})
-    return result["text"].strip(), time.time() - t0
+    elapsed = time.time() - t0
+    print(f"[live_asr] done in {elapsed:.1f}s", flush=True)
+    return result["text"].strip(), elapsed
 
 
 def render_known_verdict(judge, sample):
