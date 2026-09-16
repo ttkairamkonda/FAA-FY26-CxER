@@ -9,7 +9,7 @@ WORKDIR /app
 # CPU-only torch wheel: a fraction of the size of the default CUDA build,
 # and the demo never touches a GPU (the GPU-only judge stage isn't part of
 # this image — its output is pre-computed and shipped under data/).
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir torch --extra-index-url https://download.pytorch.org/whl/cpu
 
 COPY requirements.txt requirements-demo.txt ./
 RUN pip install --no-cache-dir -r requirements.txt -r requirements-demo.txt
