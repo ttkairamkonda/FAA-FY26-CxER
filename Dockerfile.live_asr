@@ -1,0 +1,38 @@
+# Live-ASR demo image (live_asr_app.py): two real Whisper Medium
+# checkpoints (pretrained + fine-tuned) run on CPU against whatever audio
+# you give it. Model weights are downloaded once at BUILD time and baked
+# into the image, so no internet is needed at demo time - only the build
+# needs it (~6GB total download).
+#
+# Separate from the main Dockerfile (the lightweight listen-and-compare
+# demo) on purpose: this one carries torch/transformers + ~6GB of model
+# weights, a very different size/dependency profile.
+
+FROM python:3.10-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libsndfile1 ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir torch --extra-index-url https://download.pytorch.org/whl/cpu
+
+COPY requirements-live-asr.txt ./
+RUN pip install --no-cache-dir -r requirements-live-asr.txt
+
+# Bake both model checkpoints into the image now, so `docker run` later
+# needs no internet access.
+RUN python -c "\
+from transformers import pipeline; \
+pipeline('automatic-speech-recognition', model='openai/whisper-medium.en'); \
+pipeline('automatic-speech-recognition', model='ttkairamkonda/FAA_Whisper_M_TL_500K')"
+
+COPY live_asr_app.py ./
+COPY .streamlit/ ./.streamlit/
+COPY data/curated_samples.json ./data/curated_samples.json
+COPY data/audio_samples/1687.wav data/audio_samples/6099.wav ./data/audio_samples/
+
+EXPOSE 8501
+
+CMD ["streamlit", "run", "live_asr_app.py"]

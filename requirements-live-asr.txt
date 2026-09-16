@@ -1,0 +1,6 @@
+# Dependencies for live_asr_app.py. torch is installed separately in
+# Dockerfile.live_asr (CPU-only wheel, needs --extra-index-url).
+streamlit>=1.32,<2
+transformers>=4.40
+librosa>=0.10
+soundfile>=0.12
