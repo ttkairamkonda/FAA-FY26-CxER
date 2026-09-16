@@ -41,9 +41,19 @@ Both model checkpoints get baked into the image during this build, so the
 docker run --rm -p 8501:8501 faa-live-asr-demo
 ```
 
+
 Open http://localhost:8501, try both reference clips, and try uploading a
 random short audio file to confirm the "no verdict available" path also
 looks right.
+
+### To stop the run
+```bash
+docker ps
+```
+
+```bash
+docker stop <container_id_or_name>
+```
 
 ### Package for the client's computer
 
