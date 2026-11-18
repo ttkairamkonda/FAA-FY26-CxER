@@ -4,9 +4,9 @@ Studio compares speech recognition models on air traffic control recordings. Upl
 
 | Where you want to run it | Start here |
 |---|---|
+| AWS EC2 | [AWS and remote browser access](#aws-and-remote-browser-access) |
 | Lambda GPU server, shared Linux machine, or Linux workstation without Docker | [Linux and Lambda](#linux-and-lambda) |
 | Windows or macOS laptop with Docker Desktop, or Linux with Docker Engine | [Docker Studio](#docker-studio) |
-| AWS EC2 | [AWS and remote browser access](#aws-and-remote-browser-access) |
 | Browser-only walkthrough or portable offline demo | [Demos](#demos) |
 | Batch scoring, analysis, or figures | [Batch pipeline](#batch-pipeline) |
 
@@ -17,11 +17,34 @@ git clone https://github.com/ttkairamkonda/FAA-FY26-CxER.git
 cd FAA-FY26-CxER
 ```
 
+## AWS and remote browser access
+
+For EC2, launch an Ubuntu instance with an SSH key, allow inbound SSH from your IP, and attach enough disk for the selected models. CPU Studio can use a general-purpose instance. For a local 70B judge, select a multi-GPU instance, check your regional GPU quota, and use a GPU image with NVIDIA drivers. Allow room for the judge weights, the cache and container images. A 300 GiB disk is a starting point for one judge.
+
+Connect from your laptop. The example opens a shell on EC2 and forwards the browser port in the same connection. Substitute your key and login address. On Lambda, use your usual SSH host and omit `-i` if your SSH configuration supplies the key.
+
+```sh
+ssh -i /path/to/key.pem -L 8501:127.0.0.1:8501 USER@HOST
+```
+
+**On the EC2 instance**, clone the repository using the commands above. From its root on a dedicated Ubuntu instance, run:
+
+```sh
+bash studio.sh start
+bash studio.sh status
+```
+
+The launcher builds the Docker image with the Python requirements included. It detects CPU or GPU support and prompts for a Hugging Face token when the host qualifies for the local judge. If the judge is still loading, use `bash studio.sh logs` and check its status again. On a managed instance without Docker access or sudo, follow the [native Linux setup](#linux-and-lambda) in the same SSH session.
+
+**On your laptop**, leave SSH connected and open [localhost:8501](http://localhost:8501). If local port 8501 is occupied, use `-L 8502:127.0.0.1:8501` and open local port 8502.
+
+Download the results you want to keep before running `bash studio.sh stop` on the instance. The launcher removes its containers. Stop the EC2 instance separately when you are finished with compute, and use persistent storage for caches you want to keep across stops.
+
 ## Linux and Lambda
 
 Use Linux x86-64 with Python 3.10–3.12 and the Python `venv` module. Python 3.10 uses the repository's tested dependency constraints. The NVIDIA profile uses a CUDA 12.4 PyTorch build. Initial installation and first-time model downloads need internet access.
 
-**Install once.** Pick one command for your machine. The installer creates environments inside this checkout and requires no sudo.
+**First-time setup.** Run one command from the table. The script creates the environments in this checkout and installs the corresponding requirements automatically, including the CPU or CUDA build of PyTorch. Once setup completes, use the **Start Studio** command below for each session.
 
 | What you need | Command |
 |---|---|
@@ -30,7 +53,7 @@ Use Linux x86-64 with Python 3.10–3.12 and the Python `venv` module. Python 3.
 | Studio with GPU transcription and a judge on the same host | `bash scripts/setup_local.sh all` |
 | Add a local judge to an existing Studio installation | `bash scripts/setup_local.sh judge` |
 
-The [installer](scripts/setup_local.sh) uses pip to install Studio into `.venv-studio`. Only the native local judge needs `.venv-judge`. Its vLLM version requires a different Transformers version from Studio. The app launches that environment for you. Set `PYTHON_BIN=python3.10` before the setup command to select that interpreter.
+The [installer](scripts/setup_local.sh) uses `requirements-studio.txt` for the app and `requirements-local-judge.txt` for the optional judge on this machine. It keeps them in separate environments because they require different Transformers versions. Studio launches the judge environment for you. To select a Python interpreter, prefix the setup command with `PYTHON_BIN=python3.10`.
 
 **Start Studio** from the repository root. On shared GPU hosts, set `CUDA_VISIBLE_DEVICES` to the devices allocated to you before launch. For gated model access, export `HF_TOKEN` in the same shell.
 
@@ -68,20 +91,6 @@ docker compose -f docker-compose.studio.yml --profile gpu down
 ```
 
 Download results you need before removing the Studio container. The supplied Studio Compose file mounts the judge model cache at `/models`. Studio's upload directory is inside the app container.
-
-## AWS and remote browser access
-
-For EC2, launch an Ubuntu instance with an SSH key, allow inbound SSH from your IP, and attach enough disk for the selected models. CPU Studio can use a general-purpose instance. For a local 70B judge, select a multi-GPU instance, check your regional GPU quota, and use a GPU image with NVIDIA drivers. Allow room for the judge weights, the cache and container images. A 300 GiB disk is a starting point for one judge.
-
-Connect from your laptop. The example opens a shell on EC2 and forwards the browser port in the same connection. Substitute your key and login address. On Lambda, use your usual SSH host and omit `-i` if your SSH configuration supplies the key.
-
-```sh
-ssh -i /path/to/key.pem -L 8501:127.0.0.1:8501 USER@HOST
-```
-
-At the remote shell, follow the clone instructions at the top of this guide, then follow **Linux and Lambda** or **Docker Studio** above. On a dedicated Docker-based Ubuntu EC2 host, `bash studio.sh start` is an alternative that detects hardware and builds the appropriate services. It may use sudo to install system components. The same launcher accepts `status`, `logs`, and `stop`.
-
-Leave SSH connected and open [localhost:8501](http://localhost:8501) on your laptop. If local port 8501 is occupied, use `-L 8502:127.0.0.1:8501` and open local port 8502. When finished, stop Studio, save any results you need, and stop the EC2 instance to end compute charges. Use persistent storage for caches you want to keep across stops.
 
 ## Judge settings
 
