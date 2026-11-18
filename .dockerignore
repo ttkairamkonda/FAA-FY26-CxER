@@ -16,7 +16,6 @@ tests/
 scripts/
 outputs/
 requirements-judge.txt
-DEMO_README.md
 
 # Project-local Python environments and private credentials
 .venv-*/

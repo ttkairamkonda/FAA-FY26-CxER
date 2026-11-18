@@ -9,7 +9,7 @@ venv/
 env/
 .pytest_cache/
 
-# See README.md "Data & the GitHub push" — data/ is ~100MB of ATC transcript
+# See README.md#saved-results-and-data. The data/ directory contains ~100MB of ATC transcript
 # derived JSON that should NOT go into a public git history as-is. Nothing
 # is ignored by default so `git status` shows you exactly what you're about
 # to commit; uncomment before pushing once you've decided how to handle it

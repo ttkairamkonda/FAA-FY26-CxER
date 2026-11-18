@@ -1,6 +1,6 @@
 # Legacy CUDA 12.4 / Turing profile, isolated from Studio's newer transformers.
 # Use Python 3.10-3.12. vLLM owns its matching torch/CUDA dependencies.
-# See LOCAL_STUDIO.md for hardware requirements and upstream documentation.
+# See README.md#judge-settings for hardware requirements.
 vllm==0.8.5.post1
 transformers==4.51.3
 huggingface-hub==0.36.0

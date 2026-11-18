@@ -6,7 +6,7 @@
 # GPU host with ~150 GB total VRAM (e.g. AWS g6e.12xlarge): ASR on GPU + CxER judge
 #   docker compose -f docker-compose.studio.yml --profile gpu up --build studio-gpu judge
 #
-# Then open http://localhost:8501 (on AWS: http://<public-ip>:8501, see the README).
+# Open http://localhost:8501. For AWS, see README.md#aws-and-remote-browser-access.
 # The judge takes 10-30 min to start the first time (~140 GB download);
 # the app shows "CxER judge unavailable" until it is ready, then flips to ready.
 

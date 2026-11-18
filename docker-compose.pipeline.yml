@@ -6,7 +6,7 @@
 #   docker compose -f docker-compose.pipeline.yml run --rm pipeline all
 #
 # Results land in ./results, downloaded models in ./models (reused across runs).
-# See DOCKER_PIPELINE_README.md for everything else.
+# See README.md#batch-pipeline for everything else.
 
 services:
   pipeline:

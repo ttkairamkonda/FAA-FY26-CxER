@@ -1,311 +1,174 @@
-# FAA_CxER
+# FAA CxER Studio
 
-**Run the interactive app without Docker:** follow [LOCAL_STUDIO.md](LOCAL_STUDIO.md).
-Setup creates environments inside this repository; no other project is required.
+Studio compares speech recognition models on air traffic control recordings. Upload audio to see what each model heard, enter a reference to measure word error rate (WER), or connect a judge to flag operationally critical errors. The FAA and ATC benchmark tabs also work with the results bundled in the repository.
 
-**Does a lower Word Error Rate actually mean a *safer* air-traffic-control transcription?**
+| Where you want to run it | Start here |
+|---|---|
+| Lambda GPU server, shared Linux machine, or Linux workstation without Docker | [Linux and Lambda](#linux-and-lambda) |
+| Windows or macOS laptop with Docker Desktop, or Linux with Docker Engine | [Docker Studio](#docker-studio) |
+| AWS EC2 | [AWS and remote browser access](#aws-and-remote-browser-access) |
+| Browser-only walkthrough or portable offline demo | [Demos](#demos) |
+| Batch scoring, analysis, or figures | [Batch pipeline](#batch-pipeline) |
 
-This project measures, judges, and analyzes **operationally critical**
-transcription errors in ASR (speech-to-text) output for air-traffic-control
-(ATC) radio communications — on top of the standard Word Error Rate (WER)
-everyone already reports. It introduces **Contextual Error Rate (CxER)**: the
-fraction of transcriptions that contain an error an air-traffic controller
-would actually care about (a wrong callsign, a flipped left/right, a wrong
-altitude or runway), as judged by a large language model acting as an expert
-evaluator.
+For a local or server installation, clone the repository **on the machine that will run the app**. Run subsequent commands from its root.
 
-The headline finding this codebase produces evidence for — the **WER-CxER
-paradox** — is that fine-tuning an ASR model on ATC data drives WER down
-dramatically (often 80-90%), but CxER drops by much less, and some
-individual utterances get *more* dangerous even as their WER improves. WER
-alone is not a safe proxy for "is this transcription trustworthy."
-
-If you're new to this project, read this file top to bottom once — it
-explains the concepts, the pipeline, and exactly which script to run for
-each step, in order.
-
----
-
-## 1. The problem, in plain terms
-
-An ASR model transcribes a pilot or controller's radio call. Two kinds of
-mistakes it can make are very different in consequence:
-
-| Example | WER impact | Operationally |
-|---|---|---|
-| Reference: `descend to altitude` → Hypothesis: `descend altitude` | 1 word "wrong" | **Equivalent** — same instruction |
-| Reference: `runway two seven **left**` → Hypothesis: `runway two seven **right**` | 1 word "wrong" | **Critical** — sends the aircraft to the wrong runway |
-| Reference: `american twenty one **ninety six**` → Hypothesis: `american twenty one **nine six**` | 1-2 words "wrong" | **Equivalent** — same instruction |
-
-WER treats all three the same: one wrong word out of N. It cannot tell "safe
-paraphrase" from "safety-critical error." **CxER** is built specifically to
-tell them apart, using ICAO phonetic-alphabet and ATC-phraseology rules (e.g.
-"tree" = 3, "niner" = 9, "FL350" = "flight level three five zero" are
-*equivalent*, but a changed callsign digit, direction, altitude, heading,
-runway, frequency, clearance, or waypoint is *critical*).
-
-## 2. How CxER is measured
-
-There's no large hand-labeled dataset of "which ATC transcription errors are
-dangerous," so this project uses an **LLM as judge**: a large instruction-following
-model (default: Llama-3.3-70B-Instruct, run locally under
-[vLLM](https://github.com/vllm-project/vllm)) is given the reference
-transcript and the ASR hypothesis, told the ICAO/ATC equivalence rules, and
-asked to classify the pair as:
-
-- **`Equivalent`** — no operationally critical error (wording differs, meaning doesn't)
-- **`Critical_Errors`** — a critical/contextual error was found
-- **`Parse_Failure`** — the judge's output was empty, malformed, or otherwise untrustworthy (excluded from the rate)
-
-For one (judge, ASR model) pair:
-
-```
-CxER = Critical_Errors / (Critical_Errors + Equivalent)
+```sh
+git clone https://github.com/ttkairamkonda/FAA-FY26-CxER.git
+cd FAA-FY26-CxER
 ```
 
-(`Parse_Failure` samples are excluded from both the numerator and
-denominator — a judge that fails to answer isn't evidence either way.)
+## Linux and Lambda
 
-Several judge **prompt variants** exist (`base`, `cot`, `cot_v3`,
-`compressed`, `no_examples`, `lenient` — see
-[`faa_cxer/judge/prompts/`](faa_cxer/judge/prompts/)) as an ablation: does a
-more detailed chain-of-thought prompt change the measured CxER? `cot_v3` is
-the default used for the headline results.
+Use Linux x86-64 with Python 3.10–3.12 and the Python `venv` module. Python 3.10 uses the repository's tested dependency constraints. The NVIDIA profile uses a CUDA 12.4 PyTorch build. Initial installation and first-time model downloads need internet access.
 
-## 3. The pipeline, end to end
+**Install once.** Pick one command for your machine. The installer creates environments inside this checkout and requires no sudo.
 
-```
- ┌─────────────────────┐
- │ normalized           │  one row per audio sample:
- │ predictions JSON     │  {reference, audio_path, <model_1>: hyp, <model_2>: hyp, ...}
- └──────────┬───────────┘
-            │  stage 1 — scripts/01_compute_benchmark_scores.py
-            │  (faa_cxer.metrics.BenchmarkScorer)
-            ▼
- ┌─────────────────────┐
- │ predictions +        │  adds <model>_WER / _BERTDist / _SemDist per sample,
- │ WER/BERTDist/SemDist │  + corpus_metrics per model
- └──────────┬───────────┘
-            │  stage 2 — scripts/02_run_cxer_judge.py   (needs a GPU + vLLM)
-            │  (faa_cxer.judge.CxERJudgePipeline)
-            ▼
- ┌─────────────────────┐
- │ cxer_labels/         │  one JSON per (judge, asr_model):
- │  <judge>/<model>.json│  per-sample classification + corpus-level CxER
- └──────────┬───────────┘
-            │  stage 3 — scripts/03_merge_cxer_labels.py
-            │  (faa_cxer.analysis.CxERMetricsMerger)
-            ▼
- ┌─────────────────────┐
- │ merged JSON:          │  every sample now also has
- │ metrics + CxER labels │  sample["cxer"][judge][asr_model] = {classification, ...}
- └──────────┬───────────┘
-            │
-            ├── scripts/05_analyze_transitions.py      → per-sample safety drift (Equivalent↔Critical) + Sankey
-            ├── scripts/06_analyze_paradox.py          → low-WER-but-critical concentration/trust-violation table + scatter plots
-            └── scripts/07_make_comparison_plots.py    → the headline WER vs BERTDist vs SemDist vs CxER bar chart
+| What you need | Command |
+|---|---|
+| Studio with CPU transcription | `bash scripts/setup_local.sh cpu` |
+| Studio with GPU transcription, optionally using a remote judge | `bash scripts/setup_local.sh studio` |
+| Studio with GPU transcription and a judge on the same host | `bash scripts/setup_local.sh all` |
+| Add a local judge to an existing Studio installation | `bash scripts/setup_local.sh judge` |
+
+The [installer](scripts/setup_local.sh) uses pip to install Studio into `.venv-studio`. Only the native local judge needs `.venv-judge`. Its vLLM version requires a different Transformers version from Studio. The app launches that environment for you. Set `PYTHON_BIN=python3.10` before the setup command to select that interpreter.
+
+**Start Studio** from the repository root. On shared GPU hosts, set `CUDA_VISIBLE_DEVICES` to the devices allocated to you before launch. For gated model access, export `HF_TOKEN` in the same shell.
+
+```sh
+.venv-studio/bin/python -I -m streamlit run app/cxer_studio.py --server.address 127.0.0.1 --server.port 8501
 ```
 
-Each stage's script is a thin CLI wrapper (argument parsing + wiring) around
-a class in the `faa_cxer` package that does the actual work — see
-[§6](#6-package-layout) for what lives where.
+On the same machine, open [localhost:8501](http://localhost:8501). For Lambda or EC2, use the [SSH tunnel](#aws-and-remote-browser-access). The browser runs on your laptop and inference runs on the machine hosting Studio. Stop a local judge with **Stop local judge**, then press Ctrl+C in the Studio terminal.
 
-## 4. Setup
+## Docker Studio
 
-```bash
+Start Docker Desktop (Windows/macOS, Linux containers) or Docker Engine (Linux). Run `docker info` and confirm it shows a **Server** section. If a shared server denies access to the Docker socket, use the Linux instructions above.
+
+**CPU Studio** transcribes audio and displays saved benchmarks. The [Dockerfile](docker/studio.Dockerfile) specifies what gets installed in the image. The [Compose file](docker-compose.studio.yml) tells Docker which services to start, which GPUs they can use, and which port opens Studio.
+
+```sh
+docker compose -f docker-compose.studio.yml up --build -d studio
+```
+
+**GPU Studio** needs NVIDIA GPU access inside Docker and drivers compatible with the selected images. Choose one of these commands in place of the CPU command.
+
+```sh
+# Transcription on GPU
+docker compose -f docker-compose.studio.yml --profile gpu up --build -d studio-gpu
+
+# Transcription and a separate GPU judge service
+docker compose -f docker-compose.studio.yml --profile gpu up --build -d studio-gpu judge
+```
+
+For the judge service, set the variables in [Judge settings](#judge-settings) before starting Compose. In Studio select **Connect to a server** and use `http://judge:8000/v1`. Open [localhost:8501](http://localhost:8501) on the host or use the SSH tunnel. Use the first command below to inspect logs and the second to stop the stack.
+
+```sh
+docker compose -f docker-compose.studio.yml --profile gpu logs --tail 50
+docker compose -f docker-compose.studio.yml --profile gpu down
+```
+
+Download results you need before removing the Studio container. The supplied Studio Compose file mounts the judge model cache at `/models`. Studio's upload directory is inside the app container.
+
+## AWS and remote browser access
+
+For EC2, launch an Ubuntu instance with an SSH key, allow inbound SSH from your IP, and attach enough disk for the selected models. CPU Studio can use a general-purpose instance. For a local 70B judge, select a multi-GPU instance, check your regional GPU quota, and use a GPU image with NVIDIA drivers. Allow room for the judge weights, the cache and container images. A 300 GiB disk is a starting point for one judge.
+
+Connect from your laptop. The example opens a shell on EC2 and forwards the browser port in the same connection. Substitute your key and login address. On Lambda, use your usual SSH host and omit `-i` if your SSH configuration supplies the key.
+
+```sh
+ssh -i /path/to/key.pem -L 8501:127.0.0.1:8501 USER@HOST
+```
+
+At the remote shell, follow the clone instructions at the top of this guide, then follow **Linux and Lambda** or **Docker Studio** above. On a dedicated Docker-based Ubuntu EC2 host, `bash studio.sh start` is an alternative that detects hardware and builds the appropriate services. It may use sudo to install system components. The same launcher accepts `status`, `logs`, and `stop`.
+
+Leave SSH connected and open [localhost:8501](http://localhost:8501) on your laptop. If local port 8501 is occupied, use `-L 8502:127.0.0.1:8501` and open local port 8502. When finished, stop Studio, save any results you need, and stop the EC2 instance to end compute charges. Use persistent storage for caches you want to keep across stops.
+
+## Judge settings
+
+Studio supports Llama 3.3 70B, DeepSeek R1 Distill Llama 70B, and Qwen 2.5 72B. FP16 weights alone need roughly 140–150 GB, plus GPU memory for inference. Allow at least 160 GB of available model storage for one judge. Usable GPU memory, supported architecture, and the number of compatible GPUs all matter.
+
+| Judge location | How to configure it |
+|---|---|
+| Native Linux installation | Choose **Run on this machine**, the judge model, and allocated GPUs. Choose a separate **ASR device** when possible. Click **Load judge** and check the startup logs. Stop the judge before switching its model or devices. Use **Release cached ASR models** to free memory before reassigning a GPU. |
+| Docker Compose | Create a local `.env` using [the example](docker/.env.example). Set `JUDGE_MODEL`, `TENSOR_PARALLEL_SIZE` (default 4), and `HF_TOKEN` for gated models. `MODELS_DIR` changes the host directory mounted for the judge cache. |
+| Existing vLLM server | Choose **Connect to a server**, enter the reachable API address ending in `/v1`, and pick a model the server actually serves. The server operator assigns its GPUs. `JUDGE_URL` sets the initial endpoint. |
+
+For gated weights, accept the model license with the Hugging Face account that owns your read token. Native Studio reads exported environment variables. **Re-check judge** refreshes readiness after startup. GPU memory use alone does not tell you whether the HTTP server is ready. For a native judge, inspect `results/studio_judge.log` and run `curl -i http://127.0.0.1:8000/health` on the server, substituting the port selected in Studio. HTTP 200 indicates readiness.
+
+## Analyze audio
+
+1. In **Analyze audio**, upload WAV, MP3, FLAC, M4A or OGG files, or select a bundled clip. A batch can contain up to 500 files and 1 GiB total, subject to Streamlit's per-file limit.
+2. Select the ASR models in the sidebar. Studio offers pretrained and FAA fine-tuned Whisper checkpoints. To supply your own choices, set `ASR_MODELS` to comma-separated Hugging Face model IDs before launch. Add a reference transcript for each clip you want scored.
+3. Click **Run analysis**. Predictions and references use Whisper English number normalization, so “four zero one” and “401” compare consistently. **Skip long quiet gaps** reduces repetition on radio recordings. Turn it off if a quieter speaker is being missed.
+4. Download CSV or Excel for one row per audio file and model, or JSON for detailed verdicts. Exports include raw and normalized predictions, runtime, audio duration, callsigns and estimated speaker role. The audio path points to the saved upload on the Studio host under `results/uploads/`.
+
+Callsigns use the bundled [FAA telephony mapping](data/icao_telephony.json), for example `EXECJET 401 → EJA401`. Studio labels the speaker as Pilot, Air Traffic Controller, or Unknown from the transcript. Judge assistance can refine these estimates. Unrecognized callsigns and ambiguous speaker roles appear as Unknown.
+
+**WER** counts word edits relative to the reference. **CxER** measures how often the judge finds an operationally critical error, such as changing “runway left” to “runway right.” For a given model and judge, `CxER = Critical_Errors / (Critical_Errors + Equivalent)`. Parse failures are excluded. These metrics can move differently after fine-tuning.
+
+## Saved results and data
+
+| Studio tab | Data and interpretation |
+|---|---|
+| **FAA results** | [Predictions and metrics](data/predictions/) and [per-model judge labels](data/cxer_labels/) for 6,364 FAA utterances and ten ASR outputs. The comparison includes pretrained and FAA fine-tuned Whisper and Parakeet models. Select models and metrics to update the chart and download the selection. |
+| **ATC benchmark results** | [Bundled benchmark snapshot](data/atc_benchmarks/) for ATCOSIM test, ATCO2 OOD, and UWB ATCC test. Select the dataset, ASR variants, judge and metric. The snapshot came from the `cxer-release` exports `data/raw` (reference/prediction pairs) and `eval_cache/all_results.csv` (aggregate scores for Llama, DeepSeek, and Qwen). WER and WeightedWER are percentages. Cached CCER is a fraction displayed as CxER %. |
+
+The ATC snapshot contains reference and hypothesis text pairs and aggregate scores. Audio uploads are handled separately in **Analyze audio**. The tabs read saved evaluations. Switching the live judge affects new analyses. Compare live WER with historical scores using the same normalization.
+
+## Batch pipeline
+
+The batch pipeline evaluates saved predictions and regenerates figures. For example, to print the table of low-WER transcripts with critical errors on Linux without Docker, use the shipped FAA results:
+
+```sh
 python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python scripts/06_analyze_paradox.py --no-plots
 ```
 
-Stage 2 (the LLM judge) needs a CUDA GPU host and vLLM, which pins its own
-torch/CUDA build — install it separately, only on the machine that will run
-the judge:
+To run all the analysis stages on the shipped labels with Docker Compose, use the CPU service.
 
-```bash
-pip install -r requirements-judge.txt
+```sh
+docker compose -f docker-compose.pipeline.yml --profile cpu run --build --rm pipeline-cpu analysis
 ```
 
-You do **not** need a GPU or vLLM to run stages 1 (partially — BERTScore/SemDist
-use a GPU if available but fall back to CPU), 3, 5, 6, or 7 against the
-data already included in `data/` — see [§7](#7-quickstart).
+For a new GPU evaluation, configure the judge credentials described above and run the GPU service.
 
-## 5. Data
-
-`data/` ships with the canonical data this project's results are built from
-(see [§9](#9-what-was-carried-over-from-faa_emnlp) for what was intentionally
-left out as superseded/debug artifacts):
-
-```
-data/
-├── predictions/
-│   ├── FAA_multi_model_predictions_normalized.json          # stage 1 input  (6,364 samples × 10 ASR models)
-│   ├── FAA_multi_model_predictions_with_metrics.json         # stage 1 output (+ WER/BERTDist/SemDist)
-│   ├── FAA_multi_model_predictions_with_metrics_and_cxer.json# stage 3 output (+ CxER labels) — most analysis/plot scripts read THIS file
-│   └── FAA_metrics_summary.csv                                # flat corpus-level WER/BERTDist/SemDist summary
-├── cxer_labels/
-│   └── Llama-3.3-70B-Instruct/
-│       ├── FAA_Model.json                                     # one file per ASR model judged
-│       ├── FAA_Model_prediction_whisper-medium.en.json
-│       └── ...
-└── eval_cache/                                                 # small cached corpus-level CSVs from earlier exploratory runs
+```sh
+docker compose -f docker-compose.pipeline.yml build pipeline
+docker compose -f docker-compose.pipeline.yml run --rm pipeline gpu-check
+docker compose -f docker-compose.pipeline.yml run --rm pipeline judge-smoke
+docker compose -f docker-compose.pipeline.yml run --rm pipeline all
 ```
 
-**Predictions JSON schema** (wide format — one row per audio sample, one
-column per ASR model):
+The smoke run uses ten samples per model by default. The full run seeds from shipped labels and resumes completed work. Set `FRESH_JUDGE=1` to skip seeding a fresh results directory. Container outputs appear under `results/{predictions,cxer_labels,outputs,logs}` on the host.
 
-```json
-{
-  "audio_path": "/path/to/LAX_0010__20180102T221956740Z.wav",
-  "reference": "ground i believe original for skywest thirty three fifteen were charlie six charlie to the gate",
-  "FAA_Model_prediction_whisper-large-v3": "ground, i believe original instructions for skyler 3315 were charlie 6, charlie to the gate.",
-  "FAA_Model_prediction_FAA_Whisper_L_TL_500K": "...",
-  "FAA_Model_prediction_FAA_Whisper_L_TL_500K_WER": 0.083,          // added by stage 1
-  "FAA_Model_prediction_FAA_Whisper_L_TL_500K_BERTDist": 0.012,      // added by stage 1
-  "FAA_Model_prediction_FAA_Whisper_L_TL_500K_SemDist": 0.0004,      // added by stage 1
-  "cxer": {                                                          // added by stage 3
-    "Llama-3.3-70B-Instruct": {
-      "FAA_Model_prediction_FAA_Whisper_L_TL_500K": {
-        "classification": "Equivalent",
-        "meaning_preserved": true,
-        "operational_safety": "safe",
-        "explanation": "...",
-        "transcription_errors": []
-      }
-    }
-  }
-}
-```
+Individual stages accept extra arguments. For example, `stage2 --asr-models FAA_Model --max-samples 10` limits evaluation. The corresponding [Python scripts](scripts/) also accept `--help`. Stages 1, 2 and 3 compute WER and semantic metrics, judge the predictions, and merge the labels. Stages 5, 6 and 7 analyze classification transitions, compare WER with critical errors, and plot model comparisons. Batch defaults live in [config.py](faa_cxer/config.py), and judge templates live in [prompts](faa_cxer/judge/prompts/). The default prompt is `cot_v3`.
 
-**CxER label file schema** (`data/cxer_labels/<judge>/<asr_model>.json`, one
-per model the judge evaluated):
+On EC2, [run_on_ec2.sh](docker/aws/run_on_ec2.sh) builds or pulls the pipeline image and accepts the same commands. To distribute a prebuilt pipeline image through Amazon ECR, run `bash docker/aws/push_to_ecr.sh` with AWS credentials and ECR push permissions. Set `CXER_IMAGE` to the returned URI on the GPU host and run `bash docker/aws/run_on_ec2.sh judge-smoke` with ECR pull access.
 
-```json
-{
-  "asr_model": "FAA_Model_prediction_FAA_Whisper_L_TL_500K",
-  "judge_model": "meta-llama/Llama-3.3-70B-Instruct",
-  "prompt_type": "cot_v3",
-  "status": "complete",
-  "num_samples_total": 6364,
-  "contextual_error_rate": 0.225,
-  "records": [ {"sample_index": 0, "classification": "Equivalent", "...": "..."} ]
-}
-```
+## Demos
 
-### Model families compared
+The [hosted demo](https://ttkairamkonda.github.io/FAA-Project/) lets visitors listen to samples and compare saved results. For offline use, build one of these images while connected, then run it on a machine with a compatible Docker platform.
 
-Three ASR architectures, each pretrained vs. fine-tuned on 500K FAA/ATC
-utterances (see `faa_cxer.config.DEFAULT_MODEL_PAIRS`):
-
-| Family | Pretrained checkpoint | Fine-tuned checkpoint |
+| Demo | Build | Run |
 |---|---|---|
-| Whisper Medium | `openai/whisper-medium.en` | `FAA_Whisper_M_TL_500K` |
-| Whisper Large | `openai/whisper-large-v3` | `FAA_Whisper_L_TL_500K` |
-| Parakeet | `nvidia/parakeet-tdt-0.6b-v2` | `FAA_parakeet_TL_500K` |
+| Eight bundled clips with saved predictions and verdicts | `docker build -t faa-cxer-demo .` | `docker run --rm -p 127.0.0.1:8501:8501 faa-cxer-demo` |
+| Live CPU transcription with two bundled Whisper Medium checkpoints | `docker build -f Dockerfile.live_asr -t faa-live-asr-demo .` | `docker run --rm -p 127.0.0.1:8501:8501 faa-live-asr-demo` |
 
-`FAA_Model` is the standalone production model (no pretrained counterpart in
-this comparison).
+Open the browser on port 8501. The live demo shows stored verdicts for matching reference clips. To move either image to another machine, use `docker save -o demo.tar IMAGE` on the build machine, transfer the file, and run `docker load -i demo.tar` on the destination.
 
-## 6. Package layout
+## Code and configuration
 
-```
-faa_cxer/
-├── config.py            # Config dataclass — every file path & default in one place
-├── io_utils.py           # TextNormalizer, atomic JSON save/load — shared by every stage
-├── metrics/               # Stage 1: WER / BERTScore / SemDist
-│   ├── wer.py              WERScorer          — corpus/sample WER, word-level alignment
-│   ├── semantic.py          SemanticDistanceScorer — BERTDist + SemDist (shared RoBERTa-large)
-│   ├── benchmark.py          BenchmarkScorer    — orchestrates stage 1 end to end
-├── judge/                 # Stage 2: the LLM-as-judge CxER classifier
-│   ├── prompts/              PromptRegistry + one module per prompt variant
-│   ├── json_extractor.py     JudgeResponseParser — robust JSON recovery from raw LLM text
-│   ├── evaluator.py           CxEREvaluator      — batched classification + GPU-OOM backoff
-│   └── pipeline.py            CxERJudgePipeline  — resumable, crash-safe run orchestration
-├── analysis/               # Stage 3 + downstream analysis
-│   ├── merge.py               CxERMetricsMerger        — stage 3: combine metrics + CxER labels
-│   ├── transitions.py         TransitionAnalyzer       — per-sample safety drift (Eq↔Critical)
-│   ├── paradox.py             ParadoxAnalyzer          — low-WER-but-critical concentration/trust-violation
-└── viz/                    # Plotting — one class per figure type, all reusable
-    ├── comparison_bars.py     ComparisonBarChart    — the 2x2 WER/BERTDist/SemDist/CxER bar chart
-    ├── paradox_scatter.py     ParadoxScatterPlotter — WER-jitter scatter with tau threshold
-    └── sankey.py              SafetyDriftSankeyPlotter — Sankey diagram of classification transitions
+Live model choices, Whisper decoding and the Streamlit interface are in [cxer_studio.py](app/cxer_studio.py). Transcript normalization, callsigns and speaker roles are in [transcript_processing.py](app/transcript_processing.py). For judge startup or connection issues, see the [local process launcher](app/local_judge.py) and the [HTTP client](app/judge_client.py).
+
+## Development checks
+
+Run the tests from the native Studio installation.
+
+```sh
+.venv-studio/bin/python -I -m pip install -r requirements-dev.txt
+.venv-studio/bin/python -I -m pip check
+.venv-studio/bin/python -m pytest tests -q
 ```
 
-Every class takes plain data in (paths, lists of dicts, a `Config`) and
-returns plain data out (dicts, `pandas.DataFrame`s, or a saved file) — there
-is no hidden global state, so any piece can be imported and used from a
-notebook, a test, or a different script without dragging in the rest of the
-pipeline.
-
-## 7. Quickstart
-
-All commands assume you're in the `FAA_CxER/` directory with the venv from
-[§4](#4-setup) active.
-
-```bash
-# Stage 1 — score every ASR model's predictions (WER, BERTDist, SemDist).
-# Already-computed output ships in data/predictions/, so this is only
-# needed if you add a new model column or change the normalization.
-python scripts/01_compute_benchmark_scores.py
-
-# Stage 2 — run the LLM judge (needs a GPU host with vLLM; see requirements-judge.txt).
-# CUDA_VISIBLE_DEVICES must be set BEFORE this runs (vLLM reads it at import time).
-export CUDA_VISIBLE_DEVICES=0,1,2,3
-export HF_TOKEN=hf_...                 # or put HF_TOKEN=... in a .env file
-python scripts/02_run_cxer_judge.py --max-samples 10       # sanity check first
-python scripts/02_run_cxer_judge.py                        # full run — safe to Ctrl-C and resume
-
-# Stage 3 — merge CxER labels into the metrics file. Already-computed
-# output ships in data/predictions/FAA_multi_model_predictions_with_metrics_and_cxer.json.
-python scripts/03_merge_cxer_labels.py
-
-# Everything below reads the merged file from stage 3 and needs no GPU:
-python scripts/05_analyze_transitions.py
-python scripts/06_analyze_paradox.py
-python scripts/07_make_comparison_plots.py
-```
-
-Every script accepts `--help` for its full option list (input/output paths,
-which model pairs, which judge, threshold settings, etc.) — defaults come
-from `faa_cxer.config.default_config()` and point at the paths above.
-
-There's also [`notebooks/exploration.ipynb`](notebooks/exploration.ipynb),
-a short interactive companion for poking at the merged dataset and
-rendering one figure inline — the pipeline stages themselves are meant to
-be run as the scripts above, not copy-pasted into notebook cells (that's
-what the old FAA_EMNLP notebooks did, and it's exactly the duplication this
-restructuring removes).
-
-Example figures from a full run live in
-[`outputs/examples/`](outputs/examples/) so you can see what each script
-produces without running anything.
-
-## 8. Tests
-
-A small pytest suite covers the pure-logic pieces that don't need a GPU or
-model weights — the judge's JSON-recovery logic, the prompt registry, and
-the transition analysis:
-
-```bash
-pip install pytest
-pytest tests/ -v
-```
-
-## 9. What was carried over from FAA_EMNLP
-
-This package is a restructuring of `../FAA_EMNLP` into a proper Python
-package (nothing in `FAA_EMNLP` was modified). Concretely:
-
-- **~15 near-duplicate notebook cells** in `FAA_graphs.ipynb` / `Helper.ipynb`
-  (the same pretrained-vs-finetuned bar chart, the same WER-paradox scatter
-  plot, etc. — each copy-pasted with different hardcoded paths/labels)
-  became **one parameterized class each** (`ComparisonBarChart`,
-  `ParadoxScatterPlotter`, ...) driven by `faa_cxer.config.DEFAULT_MODEL_PAIRS`.
-- **Superseded/debug data was left behind, not copied**: `cxer-lables`
-  (a 1,000-sample partial run, superseded by the full 6,364-sample
-  `cxer-lables-all`), `cxer-lables-all_v0` (an identical duplicate backup),
-  `cxer-lables_sanity` (a 10-sample smoke test), and `parakeet_debug.csv`.
-  If you need any of those, they're untouched in `../FAA_EMNLP/`.
-- `judge/prompts/*.py` template files are copied verbatim — the wording of
-  a judge prompt is experimental content, not implementation detail, so it
-  wasn't rewritten.
+The CPU suite exercises the UI, exports, audio handling, and judge integration with mocked inference. Use a bundled clip to check actual ASR on the target device and `judge-smoke` for a batch GPU judge check.

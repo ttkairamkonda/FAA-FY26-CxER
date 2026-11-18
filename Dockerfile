@@ -2,7 +2,7 @@
 # (demo_app.py). Just Streamlit + a handful of small audio files and a
 # JSON of pre-computed results - no GPU, no host Python, no PyTorch, no
 # internet access needed once this image is built/loaded. See
-# DEMO_README.md for build/ship/run steps.
+# README.md#demos for build/ship/run steps.
 
 FROM python:3.10-slim
 

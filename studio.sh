@@ -40,7 +40,7 @@ pick_docker() {
     sudo systemctl enable --now docker >/dev/null 2>&1 || true
     sudo usermod -aG docker "$USER" || true
   fi
-  command -v docker >/dev/null 2>&1 || die "Docker install failed. Use the AWS Deep Learning AMI (START_HERE.md, step 3)."
+  command -v docker >/dev/null 2>&1 || die "Docker install failed. Use the AWS Deep Learning AMI (README.md#aws-and-remote-browser-access)."
   if docker info >/dev/null 2>&1; then DOCKER="docker"; else DOCKER="sudo docker"; fi
   $DOCKER info >/dev/null 2>&1 || die "Docker is installed but not running. Try: sudo systemctl start docker"
   # The app's image needs BuildKit (buildx) for its per-image .dockerignore.
@@ -48,7 +48,7 @@ pick_docker() {
     say "Installing Docker's build plugin (one time)"
     sudo apt-get update -y >/dev/null
     sudo apt-get install -y docker-buildx >/dev/null 2>&1 || sudo apt-get install -y docker-buildx-plugin >/dev/null 2>&1 \
-      || die "Could not install docker buildx. Use the AWS Deep Learning AMI (START_HERE.md, step 3)."
+      || die "Could not install docker buildx. Use the AWS Deep Learning AMI (README.md#aws-and-remote-browser-access)."
   fi
   ok "Docker ready"
 }
@@ -103,7 +103,7 @@ get_hf_token() {
   if [[ -z "${HF_TOKEN:-}" ]]; then
     echo
     echo "    The CxER judge uses Llama-3.3-70B, which needs a free Hugging Face token."
-    echo "    (See START_HERE.md, step 2. Press Enter to skip the judge for now.)"
+    echo "    (See README.md#judge-settings. Press Enter to skip the judge for now.)"
     read -r -s -p "    Paste your Hugging Face token (hf_...): " HF_TOKEN; echo
     if [[ -n "$HF_TOKEN" ]]; then
       umask 077; echo "HF_TOKEN=$HF_TOKEN" > "$REPO/.env"; ok "Token saved to .env (only you can read it)"
@@ -129,14 +129,14 @@ cmd_start() {
       if (( VRAM_GB >= MIN_JUDGE_VRAM_GB )); then mode="judge"; else mode="gpu"; fi
     else
       warn "GPUs found but Docker can't use them (NVIDIA Container Toolkit missing). Using CPU."
-      warn "Use the AWS 'Deep Learning' AMI, which includes it (START_HERE.md, step 3)."
+      warn "Use the AWS 'Deep Learning' AMI, which includes it (README.md#aws-and-remote-browser-access)."
     fi
   else
     ok "No GPU: the app will run on the CPU"
   fi
   ensure_memory
   local free_root; free_root="$(free_gb /)"
-  (( free_root >= 15 )) || die "Only ${free_root} GB free disk. The app needs ~15 GB. Increase the instance's disk size (START_HERE.md, troubleshooting)."
+  (( free_root >= 15 )) || die "Only ${free_root} GB free disk. The app needs ~15 GB. Increase the instance's disk size (README.md#aws-and-remote-browser-access)."
   ok "Disk: ${free_root} GB free"
 
   local models; models="$(models_dir)"
