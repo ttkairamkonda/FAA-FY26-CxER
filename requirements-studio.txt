@@ -1,0 +1,16 @@
+# Studio runtime. Install torch via scripts/setup_local.sh for CPU/CUDA wheels.
+streamlit==1.65.0
+transformers==4.57.6
+accelerate==1.15.0
+librosa==0.11.0
+soundfile==0.14.0
+jiwer==4.0.0
+pandas==2.3.3
+numpy==2.2.6
+plotly==7.1.0
+requests==2.34.2
+tqdm==4.70.1
+matplotlib==3.10.9
+openpyxl==3.1.5
+imageio-ffmpeg==0.6.0
+bert-score==0.3.13

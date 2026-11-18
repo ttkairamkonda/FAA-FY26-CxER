@@ -1,0 +1,60 @@
+# FAA CxER pipeline: same file for a local GPU workstation and an AWS GPU server.
+#
+#   cp docker/.env.example .env          # put your HF_TOKEN in it
+#   docker compose -f docker-compose.pipeline.yml build
+#   docker compose -f docker-compose.pipeline.yml run --rm pipeline gpu-check
+#   docker compose -f docker-compose.pipeline.yml run --rm pipeline all
+#
+# Results land in ./results, downloaded models in ./models (reused across runs).
+# See DOCKER_PIPELINE_README.md for everything else.
+
+services:
+  pipeline:
+    image: ${CXER_IMAGE:-faa-cxer-pipeline:gpu}
+    build:
+      context: .
+      dockerfile: docker/pipeline.Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      # To use only some GPUs, set CUDA_VISIBLE_DEVICES=0,1,2,3 in .env
+      # (it reaches the container through env_file above).
+      JUDGE_MODEL: ${JUDGE_MODEL:-meta-llama/Llama-3.3-70B-Instruct}
+      PROMPT_TYPE: ${PROMPT_TYPE:-cot_v3}
+      TENSOR_PARALLEL_SIZE: ${TENSOR_PARALLEL_SIZE:-}
+    volumes:
+      - ./results:/results
+      - ${MODELS_DIR:-./models}:/models
+    # vLLM's tensor-parallel workers talk over shared memory.
+    ipc: host
+    shm_size: "16gb"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Same image without a GPU reservation: stages 1 and 3 and 5–7, tests, demo.
+  pipeline-cpu:
+    image: ${CXER_CPU_IMAGE:-faa-cxer-pipeline:cpu}
+    build:
+      context: .
+      dockerfile: docker/pipeline.Dockerfile
+      args:
+        BASE_IMAGE: python:3.12-slim
+        CPU_ONLY: "1"
+    volumes:
+      - ./results:/results
+      - ${MODELS_DIR:-./models}:/models
+    profiles: ["cpu"]
+
+  demo:
+    image: ${CXER_IMAGE:-faa-cxer-pipeline:gpu}
+    command: ["demo"]
+    ports:
+      - "8501:8501"
+    profiles: ["demo"]

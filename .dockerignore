@@ -17,3 +17,24 @@ scripts/
 outputs/
 requirements-judge.txt
 DEMO_README.md
+
+# Project-local Python environments and private credentials
+.venv-*/
+.env.*
+!.env.example
+
+.cache/
+
+# Local research files
+faa_cxer/analysis/error_tokens.py
+faa_cxer/metrics/token_frequency.py
+faa_cxer/viz/error_token_frequency.py
+faa_cxer/viz/frequency_plots.py
+outputs/critical_error_word_rarity_enrichment.png
+outputs/examples/finetuning_rare_vs_frequent.png
+outputs/examples/finetuning_relative_improvement.png
+outputs/finetuning_rare_vs_frequent.png
+outputs/finetuning_relative_improvement.png
+scripts/04_analyze_token_frequency.py
+scripts/08_analyze_critical_error_word_frequency.py
+tests/test_error_tokens.py

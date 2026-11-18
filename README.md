@@ -1,5 +1,8 @@
 # FAA_CxER
 
+**Run the interactive app without Docker:** follow [LOCAL_STUDIO.md](LOCAL_STUDIO.md).
+Setup creates environments inside this repository; no other project is required.
+
 **Does a lower Word Error Rate actually mean a *safer* air-traffic-control transcription?**
 
 This project measures, judges, and analyzes **operationally critical**
@@ -98,14 +101,9 @@ the default used for the headline results.
  │ metrics + CxER labels │  sample["cxer"][judge][asr_model] = {classification, ...}
  └──────────┬───────────┘
             │
-            ├── scripts/04_analyze_token_frequency.py  → do rare/domain words improve less than common ones?
             ├── scripts/05_analyze_transitions.py      → per-sample safety drift (Equivalent↔Critical) + Sankey
             ├── scripts/06_analyze_paradox.py          → low-WER-but-critical concentration/trust-violation table + scatter plots
-            ├── scripts/07_make_comparison_plots.py    → the headline WER vs BERTDist vs SemDist vs CxER bar chart
-            └── scripts/08_analyze_critical_error_word_frequency.py
-                                                        → are critical-error words rarer than the corpus average,
-                                                          and does that skew get WORSE after fine-tuning? (the
-                                                          mechanistic link between §4's finding and the paradox)
+            └── scripts/07_make_comparison_plots.py    → the headline WER vs BERTDist vs SemDist vs CxER bar chart
 ```
 
 Each stage's script is a thin CLI wrapper (argument parsing + wiring) around
@@ -129,7 +127,7 @@ pip install -r requirements-judge.txt
 ```
 
 You do **not** need a GPU or vLLM to run stages 1 (partially — BERTScore/SemDist
-use a GPU if available but fall back to CPU), 3, 4, 5, 6, or 7 against the
+use a GPU if available but fall back to CPU), 3, 5, 6, or 7 against the
 data already included in `data/` — see [§7](#7-quickstart).
 
 ## 5. Data
@@ -214,11 +212,10 @@ this comparison).
 faa_cxer/
 ├── config.py            # Config dataclass — every file path & default in one place
 ├── io_utils.py           # TextNormalizer, atomic JSON save/load — shared by every stage
-├── metrics/               # Stage 1: WER / BERTScore / SemDist, + token-frequency analysis
+├── metrics/               # Stage 1: WER / BERTScore / SemDist
 │   ├── wer.py              WERScorer          — corpus/sample WER, word-level alignment
 │   ├── semantic.py          SemanticDistanceScorer — BERTDist + SemDist (shared RoBERTa-large)
 │   ├── benchmark.py          BenchmarkScorer    — orchestrates stage 1 end to end
-│   └── token_frequency.py    TokenFrequencyAnalyzer — error rate by reference-word frequency bucket
 ├── judge/                 # Stage 2: the LLM-as-judge CxER classifier
 │   ├── prompts/              PromptRegistry + one module per prompt variant
 │   ├── json_extractor.py     JudgeResponseParser — robust JSON recovery from raw LLM text
@@ -228,13 +225,9 @@ faa_cxer/
 │   ├── merge.py               CxERMetricsMerger        — stage 3: combine metrics + CxER labels
 │   ├── transitions.py         TransitionAnalyzer       — per-sample safety drift (Eq↔Critical)
 │   ├── paradox.py             ParadoxAnalyzer          — low-WER-but-critical concentration/trust-violation
-│   └── error_tokens.py        CriticalErrorTokenAnalyzer — are critical-error words rarer than the corpus,
-│                                                           and does that get worse after fine-tuning?
 └── viz/                    # Plotting — one class per figure type, all reusable
     ├── comparison_bars.py     ComparisonBarChart    — the 2x2 WER/BERTDist/SemDist/CxER bar chart
-    ├── frequency_plots.py     TokenFrequencyPlotter — rare-vs-frequent-word plots
     ├── paradox_scatter.py     ParadoxScatterPlotter — WER-jitter scatter with tau threshold
-    ├── error_token_frequency.py ErrorTokenFrequencyPlotter — rarity-enrichment bar chart
     └── sankey.py              SafetyDriftSankeyPlotter — Sankey diagram of classification transitions
 ```
 
@@ -267,11 +260,9 @@ python scripts/02_run_cxer_judge.py                        # full run — safe t
 python scripts/03_merge_cxer_labels.py
 
 # Everything below reads the merged file from stage 3 and needs no GPU:
-python scripts/04_analyze_token_frequency.py
 python scripts/05_analyze_transitions.py
 python scripts/06_analyze_paradox.py
 python scripts/07_make_comparison_plots.py
-python scripts/08_analyze_critical_error_word_frequency.py
 ```
 
 Every script accepts `--help` for its full option list (input/output paths,
@@ -293,7 +284,7 @@ produces without running anything.
 
 A small pytest suite covers the pure-logic pieces that don't need a GPU or
 model weights — the judge's JSON-recovery logic, the prompt registry, and
-the transition/bucket analysis:
+the transition analysis:
 
 ```bash
 pip install pytest
@@ -310,11 +301,6 @@ package (nothing in `FAA_EMNLP` was modified). Concretely:
   plot, etc. — each copy-pasted with different hardcoded paths/labels)
   became **one parameterized class each** (`ComparisonBarChart`,
   `ParadoxScatterPlotter`, ...) driven by `faa_cxer.config.DEFAULT_MODEL_PAIRS`.
-- `token_frequency_analysis.py` originally read a separate narrow-format
-  data source (`output_transcriptions_faa_Claude/`, outside `FAA_EMNLP`)
-  with one file per model. It's been rewritten to work off the same wide
-  merged-JSON schema every other analysis class uses — one fewer file
-  format for the whole pipeline to carry around.
 - **Superseded/debug data was left behind, not copied**: `cxer-lables`
   (a 1,000-sample partial run, superseded by the full 6,364-sample
   `cxer-lables-all`), `cxer-lables-all_v0` (an identical duplicate backup),

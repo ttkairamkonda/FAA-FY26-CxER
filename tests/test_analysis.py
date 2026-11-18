@@ -6,7 +6,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from faa_cxer.analysis.paradox import ParadoxAnalyzer
 from faa_cxer.analysis.transitions import TransitionAnalyzer
 from faa_cxer.config import ModelPair
-from faa_cxer.metrics.token_frequency import DEFAULT_FREQ_BUCKETS, TokenFrequencyAnalyzer
 
 PAIR = ModelPair(family="Toy", pretrained_key="pre", finetuned_key="ft")
 
@@ -55,19 +54,3 @@ def test_counts_table_percentages_sum_to_100():
     groups = analyzer.group_by_transition(PAIR)
     table = analyzer.counts_table(groups)
     assert abs(table["Percent"].sum() - 100.0) < 1e-6
-
-
-def test_bucket_label_boundaries():
-    analyzer = TokenFrequencyAnalyzer()
-    assert analyzer.bucket_label(1) == "1\n(hapax)"
-    assert analyzer.bucket_label(2) == "2-4"
-    assert analyzer.bucket_label(100) == ">=100\n(very common)"
-    assert analyzer.bucket_label(0) == "other"
-
-
-def test_bucket_labels_ordered_rarest_first():
-    analyzer = TokenFrequencyAnalyzer()
-    ordered = analyzer.bucket_labels_ordered()
-    assert ordered[0] == "1\n(hapax)"
-    assert ordered[-1] == ">=100\n(very common)"
-    assert len(ordered) == len(DEFAULT_FREQ_BUCKETS)

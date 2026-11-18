@@ -1,5 +1,4 @@
-"""Word Error Rate scoring, including the word-level alignment needed for
-token-frequency analysis (which words tend to get misrecognized)."""
+"""Word error rate scoring and word-level alignment."""
 
 from __future__ import annotations
 

@@ -1,0 +1,33 @@
+# Build-context filter for docker/studio.Dockerfile only.
+.git/
+**/__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
+.venv/
+venv/
+env/
+.env
+*.tmp
+.DS_Store
+results/
+models/
+notebooks/
+data/predictions/*.json
+
+.venv-*/
+.cache/
+
+# Local research files
+faa_cxer/analysis/error_tokens.py
+faa_cxer/metrics/token_frequency.py
+faa_cxer/viz/error_token_frequency.py
+faa_cxer/viz/frequency_plots.py
+outputs/critical_error_word_rarity_enrichment.png
+outputs/examples/finetuning_rare_vs_frequent.png
+outputs/examples/finetuning_relative_improvement.png
+outputs/finetuning_rare_vs_frequent.png
+outputs/finetuning_relative_improvement.png
+scripts/04_analyze_token_frequency.py
+scripts/08_analyze_critical_error_word_frequency.py
+tests/test_error_tokens.py

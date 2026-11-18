@@ -1,0 +1,79 @@
+# FAA CxER Studio: the interactive app, optionally with the GPU CxER judge.
+#
+# No GPU (laptop, small AWS instance): ASR + WER only
+#   docker compose -f docker-compose.studio.yml up --build studio
+#
+# GPU host with ~150 GB total VRAM (e.g. AWS g6e.12xlarge): ASR on GPU + CxER judge
+#   docker compose -f docker-compose.studio.yml --profile gpu up --build studio-gpu judge
+#
+# Then open http://localhost:8501 (on AWS: http://<public-ip>:8501, see the README).
+# The judge takes 10-30 min to start the first time (~140 GB download);
+# the app shows "CxER judge unavailable" until it is ready, then flips to ready.
+
+x-studio: &studio
+  image: faa-cxer-studio
+  build:
+    context: .
+    dockerfile: docker/studio.Dockerfile
+  ports:
+    - "8501:8501"
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    JUDGE_URL: ${JUDGE_URL:-http://judge:8000/v1}
+    JUDGE_MODEL: ${JUDGE_MODEL:-meta-llama/Llama-3.3-70B-Instruct}
+    HF_TOKEN: ${HF_TOKEN:-}
+  volumes:
+    - ${MODELS_DIR:-./models}:/models
+  restart: unless-stopped
+
+services:
+  studio:
+    <<: *studio
+
+  studio-gpu:
+    <<: *studio
+    profiles: ["gpu"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  judge:
+    image: vllm/vllm-openai:v0.11.2
+    profiles: ["gpu"]
+    # Same settings as CxERJudgePipeline.load_model in the batch pipeline.
+    command:
+      - --model=${JUDGE_MODEL:-meta-llama/Llama-3.3-70B-Instruct}
+      - --tensor-parallel-size=${TENSOR_PARALLEL_SIZE:-4}
+      - --dtype=float16
+      - --gpu-memory-utilization=${JUDGE_GPU_MEMORY:-0.8}
+      - --max-model-len=8000
+      - --host=0.0.0.0
+      - --port=8000
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+      HF_HOME: /models/hf
+    volumes:
+      - ${MODELS_DIR:-./models}:/models
+    ipc: host
+    shm_size: "16gb"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30m
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

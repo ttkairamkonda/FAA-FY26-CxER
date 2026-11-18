@@ -1,0 +1,22 @@
+name: Studio checks
+on: [push, pull_request]
+jobs:
+  studio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install project-local CPU environment
+        run: |
+          bash scripts/setup_local.sh cpu
+          .venv-studio/bin/python -I -m pip install -r requirements-dev.txt
+      - name: Check dependencies and tests
+        env:
+          CUDA_VISIBLE_DEVICES: ''
+          JUDGE_URL: ''
+          CXER_ASR_BACKEND: mock
+        run: |
+          .venv-studio/bin/python -I -m pip check
+          .venv-studio/bin/python -m pytest tests -q
